@@ -6,3 +6,5 @@ doxygen
 *.exe
 imgui.ini
 mmlgui
+build/
+.DS_Store

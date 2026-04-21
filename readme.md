@@ -5,6 +5,49 @@ mmlgui
 
 MML (Music Macro Language) editor and compiler GUI. Powered by the [ctrmml](https://github.com/superctr/ctrmml) framework.
 
+## macOS port notes
+
+This project folder contains a macOS-oriented port of the original `mmlgui`.
+The application still uses GLFW, Dear ImGui and OpenGL, but the CMake setup has
+been adjusted so it can discover Homebrew's `glfw` installation and link the
+macOS `CoreFoundation` framework needed by the bundled `gl3w` loader.
+The current bundle target is Apple Silicon only (`arm64`) and includes a custom
+Dock icon.
+
+### Building on macOS
+
+Install the required dependency with Homebrew:
+
+	brew install glfw
+
+Then configure and build:
+
+	mkdir -p build && cd build
+	cmake ..
+	cmake --build . -j8
+	open mmlgui.app
+
+To create a distributable DMG:
+
+	cmake --build . --target mmlgui_dmg
+
+If you want a release build:
+
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+	cmake --build build -j8
+
+The bundle executable is located at:
+
+	build/mmlgui.app/Contents/MacOS/mmlgui
+
+The bundle icon is embedded at:
+
+	build/mmlgui.app/Contents/Resources/AppIcon.icns
+
+The generated DMG is written to:
+
+	dist/mmlgui-mac-arm64.dmg
+
 ## Features
 
 - MML text editor with instant feedback

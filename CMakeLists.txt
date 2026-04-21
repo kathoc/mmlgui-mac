@@ -1,10 +1,17 @@
 cmake_minimum_required(VERSION 3.11)
 project(mmlgui LANGUAGES C CXX)
 
+if(APPLE)
+	set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build only for Apple Silicon" FORCE)
+endif()
+
 find_package(PkgConfig REQUIRED)
 find_package(OpenGL REQUIRED)
 
-pkg_check_modules(GLFW3 REQUIRED glfw3)
+find_package(glfw3 CONFIG QUIET)
+if(NOT glfw3_FOUND)
+	pkg_check_modules(GLFW3 REQUIRED glfw3)
+endif()
 pkg_check_modules(CPPUNIT cppunit)
 
 if(MINGW)
@@ -46,10 +53,22 @@ target_include_directories(gui PUBLIC
 	ImGuiColorTextEdit
 	${GLFW3_INCLUDE_DIRS})
 
-target_link_libraries(gui PUBLIC OpenGL::GL ${GLFW3_LIBRARIES})
+if(TARGET glfw)
+	target_link_libraries(gui PUBLIC OpenGL::GL glfw)
+elseif(TARGET glfw3)
+	target_link_libraries(gui PUBLIC OpenGL::GL glfw3)
+else()
+	target_link_libraries(gui PUBLIC OpenGL::GL ${GLFW3_LIBRARIES})
+endif()
+
+if(APPLE)
+	find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+	target_link_libraries(gui PUBLIC ${COREFOUNDATION_FRAMEWORK})
+endif()
+
 target_compile_definitions(gui PUBLIC -DIMGUI_IMPL_OPENGL_LOADER_GL3W)
 
-add_executable(mmlgui
+set(MMLGUI_SOURCES
 	src/main.cpp
 	src/window.cpp
 	src/main_window.cpp
@@ -63,6 +82,29 @@ add_executable(mmlgui
 	src/config_window.cpp
 	src/dmf_importer.cpp
 	src/miniz.c)
+
+if(APPLE)
+	set(MMLGUI_MACOS_ICON assets/macos/AppIcon.icns)
+	set_source_files_properties(${MMLGUI_MACOS_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+	add_executable(mmlgui MACOSX_BUNDLE ${MMLGUI_SOURCES} ${MMLGUI_MACOS_ICON})
+	set_target_properties(mmlgui PROPERTIES
+		MACOSX_BUNDLE_BUNDLE_NAME "mmlgui"
+		MACOSX_BUNDLE_GUI_IDENTIFIER "com.superctr.mmlgui"
+		MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
+		MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
+		MACOSX_BUNDLE_LONG_VERSION_STRING "0.1.0"
+		MACOSX_BUNDLE_COPYRIGHT "Copyright 2020-2021 Ian Karlsson"
+		MACOSX_BUNDLE_ICON_FILE "AppIcon.icns")
+
+	add_custom_target(mmlgui_dmg
+		COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/package_macos_dmg.sh"
+			"$<TARGET_BUNDLE_DIR:mmlgui>"
+			"${CMAKE_CURRENT_SOURCE_DIR}/dist/mmlgui-mac-arm64.dmg"
+		DEPENDS mmlgui
+		COMMENT "Packaging mmlgui.app into a macOS DMG")
+else()
+	add_executable(mmlgui ${MMLGUI_SOURCES})
+endif()
 
 target_link_libraries(mmlgui PRIVATE ctrmml gui vgm-utils vgm-audio vgm-emu)
 target_compile_definitions(mmlgui PRIVATE -DLOCAL_LIBVGM)
